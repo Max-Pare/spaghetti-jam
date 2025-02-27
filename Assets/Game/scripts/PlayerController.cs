@@ -54,16 +54,15 @@ public class PlayerController : MonoBehaviour
     }
 
     private bool _wasGrounded = false;
-    void HandleAirborneGravity(){
+    void HandleAirborneGravity(){ // cursed
         if (!feet.isTouching && rb.linearVelocity.y >= -9.81f && Time.time >= 1.2f){
             rb.AddForce(Vector3.down * 1150f * (rb.mass * 0.75f) * Time.deltaTime, ForceMode.Acceleration);
         }
     }
 
-    private void HandleLanding(){
+    private void HandleLanding(){ // cursed
         if (feet.isTouching && !_wasGrounded) {
             _wasGrounded = feet.isTouching;
-            Log("Landed");
             wallJumps = 0;            
         }
         if (!feet.isTouching && _wasGrounded) { _wasGrounded = feet.isTouching; }
