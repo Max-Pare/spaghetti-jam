@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -8,7 +10,7 @@ public class PlayerController : MonoBehaviour
     private BodyMono feet = null;
     private BodyMono body = null;
     private UnityEvent shootEvent = new UnityEvent();
-    private UnityEvent landEvent = new UnityEvent();
+    private UnityEvent wallJumpEvent = new UnityEvent();
     private GameObject bullet = null;
     private Transform bulletOrigin = null;
     private Transform bulletOriginPivot = null;
@@ -68,19 +70,25 @@ public class PlayerController : MonoBehaviour
         if (!feet.isTouching && _wasGrounded) { _wasGrounded = feet.isTouching; }
     }
 
+
+
     [SerializeField]
     private float baseSpeed = 15f;
     private Vector3 direction = Vector3.zero;
     private float lastJump = 0f;
     private const float JUMP_COOLDOWN = 0.42f;
-    public Vector3 _vel = Vector3.zero;
-    float jumpMult = 1f;
-    const int MAX_WALL_JUMPS = 3;
+    private Vector3 _vel = Vector3.zero;
+    private float jumpMult = 1f;
+    private const int MAX_WALL_JUMPS = 3;
     private int wallJumps = 0;
-    void MovementHandler() {
+    private void MovementHandler() {
         HandleJump();
         HandleDirection();
         
+        void HandleWallJump(){
+            Log("Wall Jumped!");
+        }
+
         void HandleDirection(){
             _vel = rb.linearVelocity;
             if (!Input.anyKey) {
@@ -112,6 +120,7 @@ public class PlayerController : MonoBehaviour
             if (!Input.GetKeyDown(KeyCode.Space)) return;
             if(Time.time - lastJump <= JUMP_COOLDOWN) return;
             if (wallJump) { 
+                wallJumpEvent.Invoke();
                 jumpMult = 1.66f;
                 wallJumps++;
             }
