@@ -25,7 +25,6 @@ public class PlayerController : MonoBehaviour
     private void Start() {
         baseSpeed *= 1000f;
         shootEvent.AddListener(Shoot);
-        landEvent.AddListener(ResetJump);
         bullet = GameObject.Find("Bullet");
         bullet.transform.localScale *= 0.15f;
         bulletOriginPivot = GameObject.Find("BulletOriginPivot").transform;
@@ -37,7 +36,7 @@ public class PlayerController : MonoBehaviour
         CameraInputHandler();
         WeaponInputHandler();
         HandleAirborneGravity();
-        MovementInputHandler();
+        MovementHandler();
         HandleLanding();
     }
 
@@ -70,41 +69,41 @@ public class PlayerController : MonoBehaviour
         if (!feet.isTouching && _wasGrounded) { _wasGrounded = feet.isTouching; }
     }
 
-    private void ResetJump(){ // landEvent
-
-    }
-
     [SerializeField]
-    private float baseSpeed = 20f;
+    private float baseSpeed = 15f;
     private Vector3 direction = Vector3.zero;
     private float lastJump = 0f;
-    private const float jumpCooldown = 0.2f;
+    private const float JUMP_COOLDOWN = 0.42f;
     public Vector3 _vel = Vector3.zero;
     float jumpMult = 1f;
     const int MAX_WALL_JUMPS = 3;
     private int wallJumps = 0;
-    void MovementInputHandler() {
-        _vel = rb.linearVelocity;
-        if (!Input.anyKey) {
-            return;
-        }
-        if (Input.GetKey(KeyCode.W)) {
-            Move(transform.forward);
-        }
-        if (Input.GetKey(KeyCode.S)) {
-            Move(-transform.forward);
-        }
-        if (Input.GetKey(KeyCode.A)){
-            Move(-transform.right * 0.80f);
-        }
-        if (Input.GetKey(KeyCode.D)){
-            Move(transform.right * 0.80f);
+    void MovementHandler() {
+        HandleJump();
+        HandleDirection();
+        
+        void HandleDirection(){
+            _vel = rb.linearVelocity;
+            if (!Input.anyKey) {
+                return;
+            }
+            if (Input.GetKey(KeyCode.W)) {
+                Move(transform.forward);
+            }
+            if (Input.GetKey(KeyCode.S)) {
+                Move(-transform.forward);
+            }
+            if (Input.GetKey(KeyCode.A)){
+                Move(-transform.right * 0.80f);
+            }
+            if (Input.GetKey(KeyCode.D)){
+                Move(transform.right * 0.80f);
+            }
         }
 
-        HandleJump();
-        
         void HandleJump(){
             bool wallJump = false;
+            if (!feet.isTouching && !body.isTouching) return;
             if (body.isTouching && !feet.isTouching) {
                 if (wallJumps >= MAX_WALL_JUMPS) {
                     return;
@@ -112,32 +111,34 @@ public class PlayerController : MonoBehaviour
                 wallJump = true;
             }
             if (!Input.GetKeyDown(KeyCode.Space)) return;
-            if(Time.time - lastJump <= jumpCooldown) return;
+            if(Time.time - lastJump <= JUMP_COOLDOWN) return;
             if (wallJump) { 
-                jumpMult = 2f;
+                jumpMult = 1.66f;
                 wallJumps++;
             }
             Jump();
             lastJump = Time.time;
             jumpMult = 1f;
             void Jump(){
-                rb.AddForce(Vector3.up * (11f * rb.mass) * jumpMult, ForceMode.Impulse);
+                rb.AddForce(Vector3.up * (9.5f * rb.mass) * jumpMult, ForceMode.Impulse);
             }
         }
 
         void Move(Vector3 _dir, float multiplier = 1f) {
-            float _startMult = multiplier;
             direction = direction.normalized + _dir;
+            multiplier = Mathf.Max(0, 1 - (VecAvg(Vec3toVec2(rb.linearVelocity)) / 15f));
             RaycastHit hit;
             if (Physics.Raycast(this.transform.position, direction, out hit, (transform.localScale.x + transform.localScale.z) / 2 * 1.1f) && hit.collider.CompareTag("Ground")) {
                 multiplier *= Mathf.Log(hit.distance + 1);
             }
-            multiplier = Mathf.Max(0, 1 - (VecAvg(rb.linearVelocity) / 15f));
-            if (VecMax(rb.linearVelocity) <= 15f){
+            if (VecMax(Vec3toVec2(rb.linearVelocity)) <= 15f){
                 rb.AddForce(direction.normalized * baseSpeed * multiplier * Time.deltaTime, ForceMode.Acceleration);
             }
-            multiplier = _startMult;
         }
+    }
+
+    Vector2 Vec3toVec2(Vector3 vec) {
+        return new Vector2(vec.x, vec.z);
     }
 
     float VecAvg(Vector3 vec, bool abs = true) {
@@ -145,6 +146,13 @@ public class PlayerController : MonoBehaviour
             return (Mathf.Abs(vec.x) + Mathf.Abs(vec.y) + Mathf.Abs(vec.z)) / 3;
         }
         return (vec.x + vec.y + vec.z) / 3;
+    }
+
+    float VecAvg(Vector2 vec, bool abs = true) {
+        if (abs) {
+            return (Mathf.Abs(vec.x) + Mathf.Abs(vec.y)) / 2;
+        }
+        return (vec.x + vec.y) / 2;
     }
 
     float VecMax(Vector3 vec, bool abs = true) {
