@@ -1,8 +1,7 @@
 using System.Collections;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Events;
-
+using UnityEngine.ProBuilder;
 public class PlayerController : MonoBehaviour
 {
     private Rigidbody rb = null;
@@ -81,13 +80,11 @@ public class PlayerController : MonoBehaviour
     private float jumpMult = 1f;
     private const int MAX_WALL_JUMPS = 3;
     private int wallJumps = 0;
+    private float playerRaycastRelativeScale =  1f;
     private void MovementHandler() {
+        bool movedThisFrame = false;
         HandleJump();
         HandleDirection();
-        
-        void HandleWallJump(){
-            Log("Wall Jumped!");
-        }
 
         void HandleDirection(){
             _vel = rb.linearVelocity;
@@ -121,26 +118,38 @@ public class PlayerController : MonoBehaviour
             if(Time.time - lastJump <= JUMP_COOLDOWN) return;
             if (wallJump) { 
                 wallJumpEvent.Invoke();
-                jumpMult = 1.66f;
-                wallJumps++;
+                jumpMult = 1.33f;
+                wallJumps++; 
             }
+
             Jump();
             lastJump = Time.time;
-            jumpMult = 1f;
             void Jump(){
-                rb.AddForce(Vector3.up * (9.5f * rb.mass) * jumpMult, ForceMode.Impulse);
+                Vector3 jumpDir = Vector3.up;
+                if (wallJump) jumpDir += (direction *  0.66f);
+                rb.AddForce(jumpDir * (9.5f * rb.mass) * jumpMult, ForceMode.Impulse);
+                jumpMult = 1f;
             }
         }
 
-        void Move(Vector3 _dir, float multiplier = 1f) {
-            direction = direction.normalized + _dir;
-            multiplier = Mathf.Max(0, 1 - (VecAvg(Vec3toVec2(rb.linearVelocity)) / 15f));
-            RaycastHit hit;
-            if (Physics.Raycast(this.transform.position, direction, out hit, (transform.localScale.x + transform.localScale.z) / 2 * 1.1f) && hit.collider.CompareTag("Ground")) {
+        
+        void Move(Vector3 _dir) {
+            playerRaycastRelativeScale = (transform.localScale.x + transform.localScale.z) / 2;
+            direction = _dir;
+            float multiplier = Mathf.Max(0, 1 - (VecAvg(Vec3toVec2(rb.linearVelocity)) / 15f));
+            if (Physics.Raycast(this.transform.position, direction, out RaycastHit hit, playerRaycastRelativeScale * 1.1f) && hit.collider.CompareTag("Ground")) {
                 multiplier *= Mathf.Log(hit.distance + 1);
             }
             if (VecMax(Vec3toVec2(rb.linearVelocity)) <= 15f){
                 rb.AddForce(direction.normalized * baseSpeed * multiplier * Time.deltaTime, ForceMode.Acceleration);
+            }
+            movedThisFrame = true;
+        }
+
+        void CounteractMomentum(){
+            if (feet.isTouching && !movedThisFrame && VecAvg(rb.linearVelocity) > 0.1f) {
+                Log("Counteracting momentum");
+                rb.AddForce(new Vector3(-rb.linearVelocity.x, 0, -rb.linearVelocity.z) * 1000f * Time.deltaTime, ForceMode.Acceleration);
             }
         }
     }
